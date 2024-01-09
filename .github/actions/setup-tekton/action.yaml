@@ -1,0 +1,37 @@
+name: Setup tekton
+description: Deploy tekton on k8s
+
+inputs:
+  tekton-version:
+    description: tekton version
+    required: true
+  tekton-cli-version:
+    description: tekton cli version
+    required: true
+  kubectl-version:
+    description: kubectl version
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Deploy tekton 
+      run: |
+         kubectl apply -f https://storage.googleapis.com/tekton-releases/pipeline/previous/v${{ inputs.tekton-version }}/release.yaml
+      shell: bash
+
+    - name: Setup tekton CLI
+      run: |
+         curl -kLO --progress-bar  https://github.com/tektoncd/cli/releases/download/v${{ inputs.tekton-cli-version }}/tektoncd-cli-${{ inputs.tekton-cli-version }}_Linux-64bit.deb
+         sudo dpkg -i ./tektoncd-cli-${{ inputs.tekton-cli-version }}_Linux-64bit.deb
+         rm -f ./tektoncd-cli-${{ inputs.tekton-cli-version }}_Linux-64bit.deb
+      shell: bash
+
+    - name: Setup kubectl
+      run: |
+        curl -LO "https://dl.k8s.io/release/${{ inputs.kubectl-version }}/bin/linux/amd64/kubectl"
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        #ln -s /usr/local/bin/tkn /usr/local/bin/kubectl-tkn
+        #kubectl plugin list
+      shell: bash
+    

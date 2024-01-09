@@ -1,0 +1,70 @@
+name: Build, test, and push Docker Images
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/tekton-build-and-push.yaml"
+      - ".github/actions/run-tekton-task/action.yml"
+      - ".github/actions/setup-build-cluster/action.yml"
+      - ".github/actions/setup-kind/action.yml"
+      - ".github/actions/setup-tekton/action.yml"
+      - ".github/actions/tekton-deploy-pipeline/action.yml"
+
+  workflow_dispatch:
+concurrency:
+  # Only cancel in-progress jobs or runs for the current workflow - matches against branch & tags
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  
+  ### The jobs are started in // in two VMs
+  ##### Every job requires kind + tekton cluster setup
+  x86-64-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kind cluster for build
+        uses: ./.github/actions/setup-build-cluster
+
+      - name: Deploy tekton build pipeline
+        uses: ./.github/actions/tekton-deploy-pipeline
+
+      - name: Build and push images
+        uses: ./.github/actions/run-tekton-task
+        with:
+          task-name: "build-and-push-task"
+          git-repo-url: https://github.com/jupyter/docker-stacks.git
+          git-branch: "main"
+          docker-registry-destination: "ghcr.io/idirze/tekton-github-actions/docker-stacks-foundation:latest"
+          docker-build-context: "images/docker-stacks-foundation"
+          docker-file: "./Dockerfile"
+          ### [TODO] Docker build arguments
+
+  x86-64-base:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kind cluster for build
+        uses: ./.github/actions/setup-build-cluster
+
+      - name: Deploy tekton build pipeline
+        uses: ./.github/actions/tekton-deploy-pipeline
+
+      - name: Build and push images
+        uses: ./.github/actions/run-tekton-task
+        with:
+          task-name: "build-and-push-task"
+          git-repo-url: https://github.com/jupyter/docker-stacks.git
+          git-branch: "main"
+          docker-registry-destination: "ghcr.io/idirze/tekton-github-actions/base-notebook:latest"
+          docker-build-context: "images/base-notebook"
+          docker-file: "./Dockerfile"
+          ### [TODO] Docker build arguments

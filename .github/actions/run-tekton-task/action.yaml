@@ -1,0 +1,71 @@
+name: Run tekton task
+description: Run tekton task
+
+inputs:
+  task-name:
+    description: The tekton task name to run
+    required: true
+  git-repo-url:
+    description: Git repo to clone
+    required: true
+  git-branch:
+    description: Git branch
+    required: true
+  docker-registry-destination:
+    description: |
+      Registry destination, ex: ghcr.io/<ORG>/<PROJECT>/<IMAGE-NAME>:<TAG>
+    required: true
+  docker-build-context:
+    description: Docker build context location
+    required: true
+  docker-file:
+    description: Dockerfile location starting from the context
+    required: true
+
+  disk-size-mb:
+    description: Disk size in MB allocated to the step
+    required: true
+    default: '50Mi'
+
+runs:
+  using: composite
+  steps:
+    - name: Tekton task
+      #run: >
+      run: |
+        # TODO: Replace
+        pv_template_file=$(uuidgen -t).yaml
+        cat <<EOF > $pv_template_file
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+                storage: ${{ inputs.disk-size-mb }}
+        EOF
+
+        echo "Running task: ${{ inputs.task-name }} ..." 
+        task_output=$(tkn task start ${{ inputs.task-name }} \
+                       -p repo-url=${{ inputs.git-repo-url }} \
+                       -p branch-name=${{ inputs.git-branch }} \
+                       -p IMAGE=${{ inputs.docker-registry-destination }} \
+                       -p CONTEXT=${{ inputs.docker-build-context }} \
+                       -p DOCKERFILE=${{ inputs.docker-file }} \
+                       --workspace name=source,volumeClaimTemplateFile=$pv_template_file \
+                       --use-param-defaults)
+        
+        task_id=$(echo $task_output | cut -d ":" -f2)
+        tkn taskrun logs $task_id -f
+        tkn taskrun describe $task_id
+        ### TODO: Check status
+        #kubectl get po
+        #echo "kubectl get po ${task_id}-pod"
+        #kubectl get po "$task_id"-pod -o jsonpath="{.status.phase}"
+        #status=$(kubectl get po "$task_id"-pod -o jsonpath="{.status.phase}")
+        #echo "Task $task_id completed with status: $status"
+        #if [ "$status" != "Succeeded" ]
+        #then
+        #   exit 1
+        #fi
+      shell: bash
+        

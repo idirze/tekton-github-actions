@@ -1,0 +1,27 @@
+name: Deploy tekton build pipeline
+description: Deploy tekton build pipeline
+
+runs:
+  using: composite
+  steps:
+    - name: Install additional tasks from Tekton catalog
+      uses: nick-fields/retry@v2
+      with:
+        max_attempts: 10
+        retry_on: error
+        timeout_seconds: 5
+        command: |
+          tkn hub install task git-clone
+          tkn hub install task kaniko
+        shell: bash
+
+    - name: Deploy tekton build pipeline
+      uses: nick-fields/retry@v2
+      with:
+        max_attempts: 10
+        retry_on: error
+        timeout_seconds: 5
+        command: |
+          kubectl apply -f .tekton/task/
+        shell: bash
+

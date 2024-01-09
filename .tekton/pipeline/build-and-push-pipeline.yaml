@@ -1,0 +1,52 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: build-and-push-pipeline
+spec:
+  params:
+    - name: repo-url
+      type: string
+      description: The git repository URL to clone from.
+    - name: branch-name
+      type: string
+      description: The git branch to clone.
+    - name: IMAGE
+      description: Name (reference) of the image to build.
+    - name: DOCKERFILE
+      description: Path to the Dockerfile to build.
+      default: ./Dockerfile
+    - name: CONTEXT
+      description: The build context used by Kaniko.
+      default: ./
+    - name: EXTRA_ARGS
+      type: array
+      default: []
+    - name: BUILDER_IMAGE
+      description: The image on which builds will run (default is v1.5.1)
+      default: gcr.io/kaniko-project/executor:v1.11.0
+  workspaces:
+    - name: source
+      description: Holds the context and Dockerfile
+      mountPath: /workspace
+    - name: dockerconfig
+      description: Includes a docker `config.json`
+      optional: true
+      mountPath: /kaniko/.docker
+  results:
+    - name: image-ARTIFACT_OUTPUTS
+      description: Built artifact.
+      value:
+        uri: $(tasks.kaniko-build.results.IMAGE_URL)
+        digest: sha1:$(tasks.kaniko-build.results.IMAGE_DIGEST)
+  tasks: 
+  - name: build-and-push
+    taskRef:
+      name: build-and-push-task
+    workspaces:
+    - name: source
+      workspace: $(workspaces.source.path)
+    params:
+    - name: IMAGE
+      value: $(params.image-reference)
+
+

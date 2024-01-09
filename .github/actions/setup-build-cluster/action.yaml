@@ -1,0 +1,51 @@
+name: Create and configure Kind cluster for build
+description: Deploy tekton on k8s
+
+inputs:
+  kind-version:
+    description: kind version
+    required: true
+    default: 'v1.27.3'
+  tekton-version:
+    description: kubectl version
+    required: true
+    default: '0.55.0'
+  tekton-cli-version:
+    description: kubectl version
+    required: true
+    default: '0.33.0'
+  kubectl-version:
+    description: kubectl version
+    required: true
+    default: 'v1.27.1'
+  yq-version: 
+    description: yq version
+    required: true
+    default: 'v4.40.5'
+
+runs:
+  using: composite
+  steps:
+    - name: Update the image runner and install utils
+      run: |
+        sudo apt update
+      shell: bash
+
+    - name: Setup kind
+      uses: ./.github/actions/setup-kind
+      with:
+        kind-version: "${{ inputs.kind-version }}"
+
+    - name: Setup tekton
+      uses: ./.github/actions/setup-tekton
+      with:
+        tekton-version: "${{ inputs.tekton-version }}"
+        tekton-cli-version: "${{ inputs.tekton-cli-version }}"
+        kubectl-version: "${{ inputs.kubectl-version }}"
+
+    - name: Setup yq and uuid-runtime
+      run: |
+         sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${{ inputs.yq-version }}/yq_linux_amd64
+         sudo chmod a+x /usr/local/bin/yq
+         sudo apt install -y uuid-runtime
+      shell: bash
